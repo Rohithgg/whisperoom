@@ -16,7 +16,7 @@
     "@react-navigation/bottom-tabs": "7.4.6",
     "@react-navigation/native": "7.1.17",
     "@supabase/supabase-js": "2.56.1",
-    "expo": "^53.0.22",
+    "expo": "54.0.1",
   "expo-blur": "~14.1.5",
   "expo-camera": "~16.1.11",
   "expo-clipboard": "~7.1.5",
