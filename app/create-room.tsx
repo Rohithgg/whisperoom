@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { ArrowLeft, Copy, User, Lock } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
 import * as Clipboard from 'expo-clipboard';
@@ -13,6 +13,21 @@ export default function CreateRoomScreen() {
   const [isCreated, setIsCreated] = useState(false);
   const { createRoom, isLoading } = useChat();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  const handleGoBack = () => {
+    if (Platform.OS === 'web') {
+      // On web, navigate to home explicitly
+      router.replace('/');
+    } else {
+      // On mobile, use native back
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        router.replace('/');
+      }
+    }
+  };
 
   const handleCreateRoom = async () => {
     if (!nickname.trim() || !password.trim()) {
@@ -20,32 +35,68 @@ export default function CreateRoomScreen() {
       return;
     }
 
-    const result = await createRoom(nickname.trim(), password.trim());
+    if (nickname.trim().length < 2) {
+      Alert.alert('Error', 'Nickname must be at least 2 characters long');
+      return;
+    }
 
-    if (result.success && result.roomCode) {
-      setRoomCode(result.roomCode);
-      setIsCreated(true);
-    } else {
-      Alert.alert('Error', result.error || 'Failed to create room');
+    if (password.trim().length < 4) {
+      Alert.alert('Error', 'Password must be at least 4 characters long');
+      return;
+    }
+
+    try {
+      console.log('Creating room with nickname:', nickname.trim());
+      const result = await createRoom(nickname.trim(), password.trim());
+      console.log('Room creation result:', result);
+
+      if (result.success && result.roomCode) {
+        console.log('Room created successfully with code:', result.roomCode);
+        setRoomCode(result.roomCode);
+        setIsCreated(true);
+      } else {
+        console.error('Room creation failed:', result.error);
+        Alert.alert('Error', result.error || 'Failed to create room. Please try again.');
+      }
+    } catch (error) {
+      console.error('Exception during room creation:', error);
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
     }
   };
 
   const copyToClipboard = async () => {
-    await Clipboard.setStringAsync(roomCode);
-    if (Platform.OS !== 'web') {
-      Alert.alert('Copied!', 'Room code copied to clipboard');
+    if (!roomCode) {
+      Alert.alert('Error', 'No room code to copy');
+      return;
+    }
+    
+    try {
+      await Clipboard.setStringAsync(roomCode);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Copied!', 'Room code copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      Alert.alert('Error', 'Failed to copy room code');
     }
   };
 
   const handleJoinChat = () => {
-    router.push('/chat');
+    if (!roomCode) {
+      Alert.alert('Error', 'No room code available');
+      return;
+    }
+    
+    console.log('Navigating to chat with room code:', roomCode);
+    // Use replace instead of push to prevent going back to create room
+    router.replace('/chat');
   };
 
   if (isCreated) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <ArrowLeft size={24} color="#007AFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Room Created</Text>
@@ -59,22 +110,23 @@ export default function CreateRoomScreen() {
             <View style={styles.codeContainer}>
               <Text style={styles.codeLabel}>Room Code</Text>
               <View style={styles.codeBox}>
-                <Text style={styles.codeText}>{roomCode}</Text>
-                <TouchableOpacity onPress={copyToClipboard} style={styles.copyButton}>
-                  <Copy size={20} color="#007AFF" />
+                <Text style={styles.codeText}>{roomCode || 'Loading...'}</Text>
+                <TouchableOpacity onPress={copyToClipboard} style={styles.copyButton} disabled={!roomCode}>
+                  <Copy size={20} color={roomCode ? "#007AFF" : "#8E8E93"} />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.infoContainer}>
               <Text style={styles.infoTitle}>Share with your friend:</Text>
-              <Text style={styles.infoText}>Room Code: <Text style={styles.boldText}>{roomCode}</Text></Text>
+              <Text style={styles.infoText}>Room Code: <Text style={styles.boldText}>{roomCode || 'Loading...'}</Text></Text>
               <Text style={styles.infoText}>Password: <Text style={styles.boldText}>{password}</Text></Text>
             </View>
 
             <TouchableOpacity
-              style={styles.joinButton}
+              style={[styles.joinButton, !roomCode && styles.disabledButton]}
               onPress={handleJoinChat}
+              disabled={!roomCode}
             >
               <Text style={styles.joinButtonText}>Enter Chat Room</Text>
             </TouchableOpacity>

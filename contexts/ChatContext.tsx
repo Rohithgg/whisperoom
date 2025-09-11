@@ -96,13 +96,23 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const createRoom = async (nickname: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log('Creating room for:', nickname);
       const result = await createRoomHelper(nickname, password);
+      console.log('Create room result:', result);
 
       if (result.error) {
-        return { success: false, error: result.error.message || result.error };
+        console.error('Room creation error:', result.error);
+        let errorMsg = 'Failed to create room';
+        if (typeof result.error === 'string') {
+          errorMsg = result.error;
+        } else if (result.error && typeof result.error === 'object' && 'message' in result.error) {
+          errorMsg = (result.error as any).message;
+        }
+        return { success: false, error: errorMsg };
       }
 
       if (result.data && result.roomCode) {
+        console.log('Room created successfully:', result.roomCode);
         const room: Room = {
           id: result.data.id,
           code: result.roomCode,
@@ -116,9 +126,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return { success: true, roomCode: result.roomCode };
       }
 
-      return { success: false, error: 'Failed to create room' };
+      console.error('Invalid room creation result:', result);
+      return { success: false, error: 'Invalid response from server' };
     } catch (error) {
-      return { success: false, error: 'Failed to create room' };
+      console.error('Exception in createRoom:', error);
+      return { success: false, error: 'Network error - please check your connection' };
     } finally {
       setIsLoading(false);
     }

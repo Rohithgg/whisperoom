@@ -5,34 +5,64 @@ import * as Crypto from 'expo-crypto';
 export const generateRoomCode = (): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
-  for (let i = 0; i < 6; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  try {
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    // Ensure we always return a valid code
+    return result.length === 6 ? result : 'ABC123';
+  } catch (error) {
+    console.error('Error generating room code:', error);
+    // Fallback room code
+    return 'ABC123';
   }
-  return result;
 };
 
 // Hash password using SHA-256
 export const hash = async (password: string): Promise<string> => {
-  return await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    password
-  );
+  try {
+    const hashedPassword = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      password
+    );
+    console.log('Password hashed successfully');
+    return hashedPassword;
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    throw new Error('Failed to hash password');
+  }
 };
 
 // Create Room API - matches your specification
 export const createRoom = async (nickname: string, password: string) => {
-  const roomCode = generateRoomCode(); // e.g., 'abc123'
-  const { data, error } = await supabase
-    .from('rooms')
-    .insert([{
-      room_code: roomCode,
-      password_hash: await hash(password), // Use SHA256 hash
-      created_by: nickname
-    }])
-    .select()
-    .single();
+  try {
+    const roomCode = generateRoomCode(); // e.g., 'abc123'
+    console.log('Generated room code:', roomCode);
+    
+    const passwordHash = await hash(password);
+    console.log('Password hashed successfully');
+    
+    const { data, error } = await supabase
+      .from('rooms')
+      .insert([{
+        room_code: roomCode,
+        password_hash: passwordHash,
+        created_by: nickname
+      }])
+      .select()
+      .single();
 
-  return { data, roomCode, error };
+    if (error) {
+      console.error('Supabase error:', error);
+      return { data: null, roomCode: null, error };
+    }
+
+    console.log('Room created successfully:', { data, roomCode });
+    return { data, roomCode, error: null };
+  } catch (error) {
+    console.error('Error in createRoom:', error);
+    return { data: null, roomCode: null, error: error || 'Failed to create room' };
+  }
 };
 
 // Join Room API - matches your specification
