@@ -1,5 +1,5 @@
-# Dev image for Expo with Node 20.19.x
-FROM node:20.19.0-bullseye
+# Dev image for Expo with Node 20.19.x (Expo/RN required)
+FROM node:20.19.4-bullseye
 
 # Install build tools for native modules (safe for RN/Expo deps)
 RUN apt-get update \
@@ -12,9 +12,8 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Install dependencies first for better caching
+# Copy only package manifests (kept for potential future use)
 COPY package*.json ./
-RUN npm ci --no-audit --no-fund
 
 # Copy the rest of the app (not strictly required for bind mount dev, but handy)
 COPY . .
