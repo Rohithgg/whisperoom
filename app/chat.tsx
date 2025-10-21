@@ -1,39 +1,57 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, ActionSheetIOS, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Send, UserX, LogOut } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export default function ChatScreen() {
   const [messageText, setMessageText] = useState('');
-  const { currentRoom, currentUser, sendMessage, endSession, leaveRoom } = useChat();
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
+  const { currentRoom, currentUser, sendMessage, deleteMessage, endSession, leaveRoom } = useChat();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Set mounted flag after initial render
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted || isLeaving) return; // Don't navigate if intentionally leaving
+
     if (!currentRoom || !currentUser) {
-      router.replace('/');
+      // Use setTimeout to ensure navigation happens after mount
+      setTimeout(() => {
+        router.replace('/');
+      }, 0);
       return;
     }
 
     // Check if room became inactive (session ended)
     if (!currentRoom.isActive) {
       Alert.alert(
-        'Session Ended',
-        'The room creator has ended this session.',
+        'Thank You! 🙏',
+        'The session has ended. Thank you for using WhispeRoom! We hope you had a great conversation.',
         [
           {
             text: 'OK',
             onPress: () => {
+              setIsLeaving(true);
               leaveRoom();
-              router.push('/session-ended');
+              setTimeout(() => {
+                router.push('/session-ended');
+              }, 100);
             }
           }
         ]
       );
       return;
     }
-  }, [currentRoom, currentUser]);
+  }, [currentRoom, currentUser, isMounted, isLeaving]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -66,10 +84,15 @@ export default function ChatScreen() {
           text: 'End Session',
           style: 'destructive',
           onPress: async () => {
+            console.log('Ending session...');
+            setIsLeaving(true);
             const result = await endSession();
             if (result.success) {
-              router.push('/session-ended');
+              setTimeout(() => {
+                router.push('/session-ended');
+              }, 100);
             } else {
+              setIsLeaving(false);
               Alert.alert('Error', result.error || 'Failed to end session');
             }
           },
@@ -79,6 +102,7 @@ export default function ChatScreen() {
   };
 
   const handleLeaveRoom = () => {
+    console.log('handleLeaveRoom called');
     Alert.alert(
       'Leave Room',
       'Are you sure you want to leave this room?',
@@ -86,17 +110,73 @@ export default function ChatScreen() {
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => console.log('Leave cancelled'),
         },
         {
           text: 'Leave',
           style: 'destructive',
           onPress: () => {
+            console.log('Leaving room...');
+            setIsLeaving(true);
             leaveRoom();
-            router.replace('/');
+            setTimeout(() => {
+              router.replace('/');
+            }, 100);
           },
         },
       ]
     );
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Delete Message'],
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 0,
+          title: 'Message Options',
+          message: 'Are you sure you want to delete this message?',
+        },
+        async (buttonIndex) => {
+          if (buttonIndex === 1) {
+            const result = await deleteMessage(messageId);
+            if (!result.success) {
+              Alert.alert('Error', result.error || 'Failed to delete message');
+            }
+          }
+        }
+      );
+    } else {
+      // For Android, use Alert with buttons
+      Alert.alert(
+        'Delete Message',
+        'Are you sure you want to delete this message?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              const result = await deleteMessage(messageId);
+              if (!result.success) {
+                Alert.alert('Error', result.error || 'Failed to delete message');
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleLongPress = (messageId: string, messageSender: string) => {
+    // Only allow users to delete their own messages
+    if (messageSender === currentUser) {
+      handleDeleteMessage(messageId);
+    }
   };
 
   if (!currentRoom || !currentUser) {
@@ -104,6 +184,10 @@ export default function ChatScreen() {
   }
 
   const isCreator = currentUser === currentRoom.creator;
+  
+  console.log('Chat Screen - Current User:', currentUser);
+  console.log('Chat Screen - Room Creator:', currentRoom.creator);
+  console.log('Chat Screen - Is Creator:', isCreator);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -117,15 +201,23 @@ export default function ChatScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Room {currentRoom.code}</Text>
-          <Text style={styles.headerSubtitle}>{currentRoom.members.length} member{currentRoom.members.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.headerSubtitle}>{currentRoom.members} member{currentRoom.members.length !== 1 ? 's' : ''}</Text>
         </View>
         {isCreator ? (
-          <TouchableOpacity onPress={handleEndSession} style={styles.actionButton}>
+          <TouchableOpacity 
+            onPress={handleEndSession} 
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
             <UserX size={20} color="#FF3B30" />
             <Text style={styles.endButtonText}>End</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={handleLeaveRoom} style={styles.actionButton}>
+          <TouchableOpacity 
+            onPress={handleLeaveRoom} 
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
             <LogOut size={20} color="#FF9500" />
             <Text style={styles.exitButtonText}>Exit</Text>
           </TouchableOpacity>
@@ -149,12 +241,14 @@ export default function ChatScreen() {
             </View>
           ) : (
             currentRoom.messages.map((message) => (
-              <View
+              <Pressable
                 key={message.id}
                 style={[
                   styles.messageItem,
                   message.sender === currentUser ? styles.myMessage : styles.otherMessage,
                 ]}
+                onLongPress={() => handleLongPress(message.id, message.sender)}
+                delayLongPress={2000}
               >
                 <View style={styles.messageHeader}>
                   <Text style={[
@@ -176,7 +270,7 @@ export default function ChatScreen() {
                 ]}>
                   {message.text}
                 </Text>
-              </View>
+              </Pressable>
             ))
           )}
         </ScrollView>
@@ -213,46 +307,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: SCREEN_WIDTH * 0.04,
+    paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+    minHeight: 60,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: Math.min(40, SCREEN_WIDTH * 0.1),
+    height: Math.min(40, SCREEN_WIDTH * 0.1),
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: Math.min(18, SCREEN_WIDTH * 0.045),
     fontWeight: '600',
     color: '#1c1c1e',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: Math.min(12, SCREEN_WIDTH * 0.03),
     color: '#8E8E93',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: SCREEN_WIDTH * 0.02,
     paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: '#f2f2f7',
+    minWidth: 50,
   },
   endButtonText: {
-    fontSize: 12,
+    fontSize: Math.min(12, SCREEN_WIDTH * 0.03),
     fontWeight: '600',
     color: '#FF3B30',
   },
   exitButtonText: {
-    fontSize: 12,
+    fontSize: Math.min(12, SCREEN_WIDTH * 0.03),
     fontWeight: '600',
     color: '#FF9500',
   },
@@ -261,7 +359,7 @@ const styles = StyleSheet.create({
   },
   messagesContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: SCREEN_WIDTH * 0.04,
   },
   messagesContent: {
     paddingVertical: 16,
@@ -271,21 +369,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: SCREEN_HEIGHT * 0.1,
   },
   emptyStateText: {
-    fontSize: 18,
+    fontSize: Math.min(18, SCREEN_WIDTH * 0.045),
     fontWeight: '600',
     color: '#8E8E93',
     marginBottom: 4,
   },
   emptyStateSubtext: {
-    fontSize: 14,
+    fontSize: Math.min(14, SCREEN_WIDTH * 0.035),
     color: '#8E8E93',
   },
   messageItem: {
-    maxWidth: '80%',
+    maxWidth: SCREEN_WIDTH > 600 ? '70%' : '80%',
     marginVertical: 2,
+    minWidth: SCREEN_WIDTH * 0.2,
   },
   myMessage: {
     alignSelf: 'flex-end',
@@ -298,9 +397,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+    paddingHorizontal: 4,
   },
   senderName: {
-    fontSize: 12,
+    fontSize: Math.min(12, SCREEN_WIDTH * 0.03),
     fontWeight: '600',
   },
   mySenderName: {
@@ -310,7 +410,7 @@ const styles = StyleSheet.create({
     color: '#34C759',
   },
   timestamp: {
-    fontSize: 11,
+    fontSize: Math.min(11, SCREEN_WIDTH * 0.028),
   },
   myTimestamp: {
     color: '#007AFF',
@@ -320,8 +420,8 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
   },
   messageText: {
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: Math.min(16, SCREEN_WIDTH * 0.04),
+    lineHeight: Math.min(22, SCREEN_WIDTH * 0.055),
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -344,11 +444,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 16,
+    paddingHorizontal: SCREEN_WIDTH * 0.04,
+    paddingVertical: 16,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#e5e5e5',
     gap: 12,
+    minHeight: 70,
   },
   messageInput: {
     flex: 1,
@@ -356,13 +458,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    maxHeight: 100,
+    fontSize: Math.min(16, SCREEN_WIDTH * 0.04),
+    maxHeight: Math.min(100, SCREEN_HEIGHT * 0.15),
+    minHeight: 40,
     color: '#1c1c1e',
   },
   sendButton: {
-    width: 40,
-    height: 40,
+    width: Math.min(40, SCREEN_WIDTH * 0.1),
+    height: Math.min(40, SCREEN_WIDTH * 0.1),
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',

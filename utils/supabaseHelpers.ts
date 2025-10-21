@@ -162,3 +162,55 @@ export const subscribeToRoomStatus = (roomId: string, onRoomUpdate: (room: any) 
     })
     .subscribe();
 };
+
+// Delete a message from the database
+export const deleteMessage = async (messageId: string, sender: string) => {
+  try {
+    // First, verify that the message belongs to the sender
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('sender')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchError || !message) {
+      return { success: false, error: 'Message not found' };
+    }
+
+    if (message.sender !== sender) {
+      return { success: false, error: 'You can only delete your own messages' };
+    }
+
+    // Delete the message
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (error) {
+      console.error('Error deleting message:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    return { success: false, error: 'Failed to delete message' };
+  }
+};
+
+// Subscribe to message deletions for a room
+export const subscribeToMessageDeletions = (roomId: string, onMessageDeleted: (messageId: string) => void) => {
+  return supabase
+    .channel('chat-deletions-' + roomId)
+    .on('postgres_changes', {
+      event: 'DELETE',
+      schema: 'public',
+      table: 'messages',
+      filter: `room_id=eq.${roomId}`
+    }, (payload) => {
+      const deletedMessage = payload.old;
+      onMessageDeleted(deletedMessage.id);
+    })
+    .subscribe();
+};

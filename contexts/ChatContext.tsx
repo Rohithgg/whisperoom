@@ -4,8 +4,10 @@ import {
   joinRoom as joinRoomHelper,
   sendMessage as sendMessageHelper,
   endSession as endSessionHelper,
+  deleteMessage as deleteMessageHelper,
   subscribeToMessages,
-  subscribeToRoomStatus
+  subscribeToRoomStatus,
+  subscribeToMessageDeletions
 } from '../utils/supabaseHelpers';
 
 export interface Message {
@@ -32,6 +34,7 @@ interface ChatContextType {
   createRoom: (nickname: string, password: string) => Promise<{ success: boolean; roomCode?: string; error?: string }>;
   joinRoom: (roomCode: string, password: string, nickname: string) => Promise<{ success: boolean; error?: string }>;
   sendMessage: (text: string) => Promise<{ success: boolean; error?: string }>;
+  deleteMessage: (messageId: string) => Promise<{ success: boolean; error?: string }>;
   endSession: () => Promise<{ success: boolean; error?: string }>;
   leaveRoom: () => void;
 }
@@ -44,6 +47,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null);
   const [roomStatusChannel, setRoomStatusChannel] = useState<any>(null);
+  const [deletionChannel, setDeletionChannel] = useState<any>(null);
 
   // Subscribe to real-time messages and room status when room changes
   useEffect(() => {
@@ -60,6 +64,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             timestamp: new Date(newMessage.created_at),
             room_id: newMessage.room_id
           };
+
+          // Prevent duplicate messages
+          const messageExists = prev.messages.some(msg => msg.id === newMsg.id);
+          if (messageExists) {
+            return prev;
+          }
 
           return {
             ...prev,
@@ -82,12 +92,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       });
       setRoomStatusChannel(statusChannel);
 
+      // Subscribe to message deletions
+      const deleteChannel = subscribeToMessageDeletions(currentRoom.id, (messageId) => {
+        setCurrentRoom(prev => {
+          if (!prev) return prev;
+
+          return {
+            ...prev,
+            messages: prev.messages.filter(msg => msg.id !== messageId)
+          };
+        });
+      });
+      setDeletionChannel(deleteChannel);
+
       return () => {
         if (messagesChannel) {
           messagesChannel.unsubscribe();
         }
         if (statusChannel) {
           statusChannel.unsubscribe();
+        }
+        if (deleteChannel) {
+          deleteChannel.unsubscribe();
         }
       };
     }
@@ -174,9 +200,63 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await sendMessageHelper(currentRoom.id, currentUser, text);
+      
+      // If message was sent successfully, add it optimistically to local state
+      // This ensures the creator sees their own message immediately
+      if (result.success && result.data) {
+        const newMsg: Message = {
+          id: result.data.id,
+          sender: result.data.sender,
+          text: result.data.text,
+          timestamp: new Date(result.data.created_at),
+          room_id: result.data.room_id
+        };
+
+        setCurrentRoom(prev => {
+          if (!prev) return prev;
+
+          // Check if message already exists (from realtime subscription)
+          const messageExists = prev.messages.some(msg => msg.id === newMsg.id);
+          if (messageExists) {
+            return prev;
+          }
+
+          return {
+            ...prev,
+            messages: [...prev.messages, newMsg]
+          };
+        });
+      }
+      
       return { success: result.success, error: result.error };
     } catch (error) {
       return { success: false, error: 'Failed to send message' };
+    }
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!currentRoom || !currentUser) {
+      return { success: false, error: 'No active room or user' };
+    }
+
+    try {
+      const result = await deleteMessageHelper(messageId, currentUser);
+      
+      if (result.success) {
+        // Optimistically remove the message from the local state
+        setCurrentRoom(prev => {
+          if (!prev) return prev;
+          
+          return {
+            ...prev,
+            messages: prev.messages.filter(msg => msg.id !== messageId)
+          };
+        });
+      }
+      
+      return { success: result.success, error: result.error };
+    } catch (error) {
+      return { success: false, error: 'Failed to delete message' };
     }
   };
 
@@ -212,18 +292,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   const leaveRoom = () => {
-    setCurrentRoom(null);
-    setCurrentUser(null);
-
+    console.log('ChatContext: leaveRoom called');
+    
+    // Unsubscribe from all channels first
     if (realtimeChannel) {
+      console.log('Unsubscribing from realtime channel');
       realtimeChannel.unsubscribe();
       setRealtimeChannel(null);
     }
 
     if (roomStatusChannel) {
+      console.log('Unsubscribing from room status channel');
       roomStatusChannel.unsubscribe();
       setRoomStatusChannel(null);
     }
+
+    if (deletionChannel) {
+      console.log('Unsubscribing from deletion channel');
+      deletionChannel.unsubscribe();
+      setDeletionChannel(null);
+    }
+
+    // Clear room and user state
+    console.log('Clearing room and user state');
+    setCurrentRoom(null);
+    setCurrentUser(null);
+    console.log('ChatContext: leaveRoom completed');
   };
 
   return (
@@ -234,6 +328,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       sendMessage,
+      deleteMessage,
       endSession,
       leaveRoom,
     }}>

@@ -1,11 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { ChatProvider } from '@/contexts/ChatContext';
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
+  
   useFrameworkReady();
+
+  useEffect(() => {
+    // Ensure the layout is ready before rendering
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return null; // or a loading screen
+  }
 
   return (
     <ChatProvider>

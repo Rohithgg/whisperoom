@@ -88,8 +88,10 @@ export default function CreateRoomScreen() {
     }
     
     console.log('Navigating to chat with room code:', roomCode);
-    // Use replace instead of push to prevent going back to create room
-    router.replace('/chat');
+    // Use setTimeout to ensure navigation happens after state updates
+    setTimeout(() => {
+      router.replace('/chat');
+    }, 100);
   };
 
   if (isCreated) {
@@ -227,6 +229,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -237,6 +241,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    width: '100%',
+    maxWidth: 500,
   },
   cardTitle: {
     fontSize: 24,
@@ -293,6 +299,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    width: '100%',
+    maxWidth: 500,
   },
   successTitle: {
     fontSize: 20,

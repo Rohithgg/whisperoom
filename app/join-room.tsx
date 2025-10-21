@@ -20,7 +20,10 @@ export default function JoinRoomScreen() {
     const result = await joinRoom(roomCode.trim().toUpperCase(), password.trim(), nickname.trim());
 
     if (result.success) {
-      router.push('/chat');
+      // Use setTimeout to ensure navigation happens after state updates
+      setTimeout(() => {
+        router.push('/chat');
+      }, 100);
     } else {
       Alert.alert('Error', result.error || 'Failed to join room');
     }
@@ -132,6 +135,8 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   card: {
     backgroundColor: '#ffffff',
@@ -142,6 +147,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    width: '100%',
+    maxWidth: 500,
   },
   cardTitle: {
     fontSize: 24,

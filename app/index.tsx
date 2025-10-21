@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus, Users } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,7 +26,7 @@ export default function HomeScreen() {
               style={styles.primaryButton}
               onPress={() => router.push('/create-room')}
             >
-              <Plus size={24} color="#ffffff" />
+              <Plus size={Math.min(24, SCREEN_WIDTH * 0.06)} color="#ffffff" />
               <Text style={styles.buttonText}>Create Room</Text>
             </TouchableOpacity>
 
@@ -32,7 +34,7 @@ export default function HomeScreen() {
               style={styles.secondaryButton}
               onPress={() => router.push('/join-room')}
             >
-              <Users size={24} color="#007AFF" />
+              <Users size={Math.min(24, SCREEN_WIDTH * 0.06)} color="#007AFF" />
               <Text style={styles.secondaryButtonText}>Join Room</Text>
             </TouchableOpacity>
           </View>
@@ -57,31 +59,36 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: SCREEN_WIDTH * 0.06,
+    paddingVertical: SCREEN_HEIGHT * 0.03,
     justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    marginTop: 60,
+    marginTop: SCREEN_HEIGHT * 0.08,
   },
   title: {
-    fontSize: 36,
+    fontSize: Math.min(36, SCREEN_WIDTH * 0.09),
     fontWeight: 'bold',
     color: '#ffffff',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: Math.min(18, SCREEN_WIDTH * 0.045),
     color: '#ffffff',
     opacity: 0.9,
     textAlign: 'center',
   },
   buttonContainer: {
     gap: 16,
+    maxWidth: 400,
+    width: '100%',
+    alignSelf: 'center',
   },
   primaryButton: {
     backgroundColor: '#007AFF',
-    paddingVertical: 16,
+    paddingVertical: Math.min(16, SCREEN_HEIGHT * 0.02),
     paddingHorizontal: 24,
     borderRadius: 16,
     flexDirection: 'row',
@@ -93,10 +100,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    minHeight: 56,
   },
   secondaryButton: {
     backgroundColor: '#ffffff',
-    paddingVertical: 16,
+    paddingVertical: Math.min(16, SCREEN_HEIGHT * 0.02),
     paddingHorizontal: 24,
     borderRadius: 16,
     flexDirection: 'row',
@@ -108,25 +116,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,
+    minHeight: 56,
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: Math.min(18, SCREEN_WIDTH * 0.045),
     fontWeight: '600',
   },
   secondaryButtonText: {
     color: '#007AFF',
-    fontSize: 18,
+    fontSize: Math.min(18, SCREEN_WIDTH * 0.045),
     fontWeight: '600',
   },
   features: {
     alignItems: 'center',
     gap: 8,
-    marginBottom: 40,
+    marginBottom: SCREEN_HEIGHT * 0.05,
   },
   featureText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: Math.min(16, SCREEN_WIDTH * 0.04),
     opacity: 0.9,
+    textAlign: 'center',
   },
 });
