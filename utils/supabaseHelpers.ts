@@ -166,41 +166,50 @@ export const subscribeToRoomStatus = (roomId: string, onRoomUpdate: (room: any) 
 // Delete a message from the database
 export const deleteMessage = async (messageId: string, sender: string) => {
   try {
+    console.log('supabaseHelpers: Attempting to delete message', messageId, 'by', sender);
+    
     // First, verify that the message belongs to the sender
     const { data: message, error: fetchError } = await supabase
       .from('messages')
-      .select('sender')
+      .select('sender, room_id')
       .eq('id', messageId)
       .single();
 
     if (fetchError || !message) {
+      console.error('supabaseHelpers: Message not found', fetchError);
       return { success: false, error: 'Message not found' };
     }
 
+    console.log('supabaseHelpers: Message found, sender:', message.sender, 'room_id:', message.room_id);
+
     if (message.sender !== sender) {
+      console.error('supabaseHelpers: User not authorized to delete this message');
       return { success: false, error: 'You can only delete your own messages' };
     }
 
     // Delete the message
+    console.log('supabaseHelpers: Deleting message from database');
     const { error } = await supabase
       .from('messages')
       .delete()
       .eq('id', messageId);
 
     if (error) {
-      console.error('Error deleting message:', error);
+      console.error('supabaseHelpers: Error deleting message from database:', error);
       return { success: false, error: error.message };
     }
 
+    console.log('supabaseHelpers: Message deleted successfully from database');
     return { success: true };
   } catch (error) {
-    console.error('Error deleting message:', error);
+    console.error('supabaseHelpers: Exception during message deletion:', error);
     return { success: false, error: 'Failed to delete message' };
   }
 };
 
 // Subscribe to message deletions for a room
 export const subscribeToMessageDeletions = (roomId: string, onMessageDeleted: (messageId: string) => void) => {
+  console.log('supabaseHelpers: Setting up deletion subscription for room:', roomId);
   return supabase
     .channel('chat-deletions-' + roomId)
     .on('postgres_changes', {
@@ -209,8 +218,12 @@ export const subscribeToMessageDeletions = (roomId: string, onMessageDeleted: (m
       table: 'messages',
       filter: `room_id=eq.${roomId}`
     }, (payload) => {
+      console.log('supabaseHelpers: Deletion event received:', payload);
       const deletedMessage = payload.old;
+      console.log('supabaseHelpers: Deleted message ID:', deletedMessage.id);
       onMessageDeleted(deletedMessage.id);
     })
-    .subscribe();
+    .subscribe((status) => {
+      console.log('supabaseHelpers: Deletion subscription status:', status);
+    });
 };

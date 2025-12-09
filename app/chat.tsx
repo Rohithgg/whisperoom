@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, ActionSheetIOS, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Alert, Pressable, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Send, UserX, LogOut } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
@@ -13,7 +13,6 @@ export default function ChatScreen() {
   const { currentRoom, currentUser, sendMessage, deleteMessage, endSession, leaveRoom } = useChat();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Set mounted flag after initial render
@@ -51,7 +50,7 @@ export default function ChatScreen() {
       );
       return;
     }
-  }, [currentRoom, currentUser, isMounted, isLeaving]);
+  }, [currentRoom, currentUser, isMounted, isLeaving, router, leaveRoom]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -128,54 +127,27 @@ export default function ChatScreen() {
     );
   };
 
-  const handleDeleteMessage = (messageId: string) => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Delete Message'],
-          destructiveButtonIndex: 1,
-          cancelButtonIndex: 0,
-          title: 'Message Options',
-          message: 'Are you sure you want to delete this message?',
-        },
-        async (buttonIndex) => {
-          if (buttonIndex === 1) {
-            const result = await deleteMessage(messageId);
-            if (!result.success) {
-              Alert.alert('Error', result.error || 'Failed to delete message');
-            }
-          }
-        }
-      );
+  const handleDeleteMessage = async (messageId: string) => {
+    console.log('Chat: Deleting message:', messageId);
+    const result = await deleteMessage(messageId);
+    if (result.success) {
+      console.log('Chat: Message deleted successfully, UI will update via realtime subscription');
+      // Don't show alert on success - the message will just disappear
     } else {
-      // For Android, use Alert with buttons
-      Alert.alert(
-        'Delete Message',
-        'Are you sure you want to delete this message?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              const result = await deleteMessage(messageId);
-              if (!result.success) {
-                Alert.alert('Error', result.error || 'Failed to delete message');
-              }
-            },
-          },
-        ]
-      );
+      console.error('Chat: Failed to delete message:', result.error);
+      Alert.alert('Error', result.error || 'Failed to delete message');
     }
   };
 
-  const handleLongPress = (messageId: string, messageSender: string) => {
+  const handleLongPress = async (messageId: string, messageSender: string) => {
     // Only allow users to delete their own messages
     if (messageSender === currentUser) {
-      handleDeleteMessage(messageId);
+      console.log('Chat: Long press detected for own message:', messageId);
+      console.log('Chat: Current user:', currentUser, 'Message sender:', messageSender);
+      await handleDeleteMessage(messageId);
+    } else {
+      console.log('Chat: Long press detected but not own message:', messageId);
+      console.log('Chat: Current user:', currentUser, 'Message sender:', messageSender);
     }
   };
 
@@ -248,7 +220,7 @@ export default function ChatScreen() {
                   message.sender === currentUser ? styles.myMessage : styles.otherMessage,
                 ]}
                 onLongPress={() => handleLongPress(message.id, message.sender)}
-                delayLongPress={2000}
+                delayLongPress={3000}
               >
                 <View style={styles.messageHeader}>
                   <Text style={[

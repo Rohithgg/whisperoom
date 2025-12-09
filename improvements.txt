@@ -1,0 +1,61 @@
+Improvements for whisperoom project
+
+1. Architecture & State Management
+- Extract message list and input into smaller presentational components to keep `app/chat.tsx` lean and more testable.
+- Introduce a simple global error/toast system instead of scattered `Alert.alert` calls across screens.
+- Persist `currentUser` and last joined room in async storage so users can restore sessions after app reloads.
+
+2. Realtime & Messaging
+- In `contexts/ChatContext.tsx`, implement the TODO in `deleteMessage` to restore the message in UI if the Supabase delete fails.
+- Consider debouncing or batching rapid message updates in `setCurrentRoom` to avoid unnecessary re-renders on busy chats.
+- Add optimistic UI for join/leave: show loading or transitional states when `isLoading` is true for room actions.
+
+3. Supabase Helpers
+- In `utils/supabaseHelpers.ts`, wrap all Supabase calls with a thin error-normalization layer so the rest of the app gets consistent `{ success, error }` responses.
+- Add basic retry or clearer error messages for common failure cases (e.g., network offline, room not found, invalid password).
+- Move magic strings like channel names (`'chat-' + roomId`, `'room-' + roomId`) into helper functions or constants to reduce duplication.
+
+4. Room & Member Handling
+- Extend the `Room` model to track member list properly instead of using a single `members: string[]` placeholder with only the local nickname.
+- Implement a "participant joined/left" message or status indicator using Supabase so both sides can see when someone enters or leaves.
+- Add optional room expiration or inactivity timeout logic so abandoned rooms can be cleaned up.
+
+5. UX & Interaction
+- In `app/chat.tsx`, make long-press delete discoverable (e.g., small hint text like "Hold your message to delete" when the chat is empty or on first use).
+- Allow users to confirm deletion with a short in-app toast instead of blocking `Alert` dialogs for a smoother messaging experience.
+- Improve keyboard handling on small screens (especially Android) by adjusting `KeyboardAvoidingView` behavior and testing landscape mode.
+
+6. Navigation & Session Flow
+- Centralize navigation after room leave/end into a small utility to avoid repeating `setTimeout` and route names.
+- Ensure that navigating away from `ChatScreen` cleans up listeners even if `leaveRoom` is not explicitly called (e.g., hardware back button on Android).
+- Add a guard to prevent entering `/chat` if there is no active room, and instead redirect to `/` with a clear message.
+
+7. Validation & Security
+- Strengthen input validation for room code and password (e.g., disallow whitespace-only passwords, give clearer messages if code length is incorrect).
+- Hash the password only once per join attempt in `joinRoom` and consider rate limiting or simple lockouts on repeated invalid attempts.
+- Avoid logging sensitive values like raw passwords and consider reducing log verbosity before production.
+
+8. Performance
+- Use `React.memo` or `useCallback` in `chat.tsx` to avoid re-rendering the whole message list on every keystroke in the input.
+- Consider using `FlatList` instead of `ScrollView` for messages to handle large histories more efficiently with virtualization.
+- Limit console logging in production builds to reduce noise and improve performance.
+
+9. Styling & Responsiveness
+- Unify shared layout styles (card, header, buttons) across `create-room`, `join-room`, `index`, and `session-ended` into a small design system or style module.
+- Add dark mode support by defining color tokens and switching them based on system theme.
+- Verify web responsiveness (hover states, pointer vs touch interactions) and refine padding/margins for very large desktop widths.
+
+10. Testing & Tooling
+- Add basic unit tests for `supabaseHelpers` (e.g., `generateRoomCode`, `hash`, and simple happy-path API calls using mocks).
+- Add a couple of integration tests around `ChatContext` to ensure send/delete flows correctly update local state.
+- Introduce a simple CI workflow (GitHub Actions) to run `npm test` and `npm run lint` on every push.
+
+11. Reliability & Edge Cases
+- Handle the case where Supabase realtime subscriptions fail to connect or are lost; show a small "Reconnecting..." banner in `ChatScreen`.
+- When a room is ended by the creator, ensure all participants see a consistent message and are redirected even if backgrounded.
+- Add graceful handling when environment variables for Supabase are missing, with a user-friendly error screen instead of only throwing at import time.
+
+12. Product & Polish
+- Add a lightweight onboarding screen or tips carousel explaining how WhispeRoom works (create room, share code, join, delete your messages).
+- Add simple branding (logo in `assets/images`, app icon, splash screen tweaks) to make the app feel more finished.
+- Collect non-identifying usage metrics (if desired) via an opt-in mechanism to understand feature adoption before scaling further.

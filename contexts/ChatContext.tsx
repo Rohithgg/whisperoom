@@ -94,13 +94,37 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       // Subscribe to message deletions
       const deleteChannel = subscribeToMessageDeletions(currentRoom.id, (messageId) => {
+        console.log('ChatContext: Received deletion event for message:', messageId);
         setCurrentRoom(prev => {
-          if (!prev) return prev;
+          if (!prev) {
+            console.log('ChatContext: No current room, skipping deletion');
+            return prev;
+          }
 
-          return {
-            ...prev,
-            messages: prev.messages.filter(msg => msg.id !== messageId)
-          };
+          console.log('ChatContext: Current messages before deletion:', prev.messages.length);
+          const messageExists = prev.messages.some(msg => msg.id === messageId);
+          console.log('ChatContext: Message exists in state:', messageExists);
+          
+          if (messageExists) {
+            console.log('ChatContext: Filtering out message:', messageId);
+            const filteredMessages = prev.messages.filter(msg => {
+              const keep = msg.id !== messageId;
+              if (!keep) {
+                console.log('ChatContext: Removing message:', msg.id, msg.text);
+              }
+              return keep;
+            });
+            console.log('ChatContext: Messages after deletion:', filteredMessages.length);
+            
+            return {
+              ...prev,
+              messages: filteredMessages
+            };
+          } else {
+            console.log('ChatContext: Message not found in local state, current IDs:', prev.messages.map(m => m.id));
+          }
+
+          return prev;
         });
       });
       setDeletionChannel(deleteChannel);
@@ -240,22 +264,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
 
     try {
+      console.log('ChatContext: Deleting message', messageId, 'by user', currentUser);
+      
+      // Optimistically remove the message immediately for instant UI feedback
+      setCurrentRoom(prev => {
+        if (!prev) return prev;
+        
+        console.log('ChatContext: Optimistically removing message from UI');
+        return {
+          ...prev,
+          messages: prev.messages.filter(msg => msg.id !== messageId)
+        };
+      });
+      
       const result = await deleteMessageHelper(messageId, currentUser);
       
       if (result.success) {
-        // Optimistically remove the message from the local state
-        setCurrentRoom(prev => {
-          if (!prev) return prev;
-          
-          return {
-            ...prev,
-            messages: prev.messages.filter(msg => msg.id !== messageId)
-          };
-        });
+        console.log('ChatContext: Message deletion successful in database');
+        // The realtime subscription will also trigger, but optimistic deletion ensures immediate UI update
+      } else {
+        console.error('ChatContext: Message deletion failed:', result.error);
+        // TODO: Restore the message if deletion failed
       }
       
       return { success: result.success, error: result.error };
     } catch (error) {
+      console.error('ChatContext: Exception during message deletion:', error);
       return { success: false, error: 'Failed to delete message' };
     }
   };

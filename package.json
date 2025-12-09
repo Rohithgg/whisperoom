@@ -48,8 +48,10 @@
   },
   "devDependencies": {
     "@babel/core": "7.28.3",
-    "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
+    "@types/react": "~19.2.2",
+    "typescript": "~5.8.3",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~10.0.0"
   },
   "overrides": {
     "@expo/cli": ">=0.25.0"
