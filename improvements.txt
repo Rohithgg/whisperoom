@@ -1,6 +1,6 @@
 Improvements for whisperoom project
 
-1. Architecture & State Management
+1. Architecture & State Management - solved
 - Extract message list and input into smaller presentational components to keep `app/chat.tsx` lean and more testable.
 - Introduce a simple global error/toast system instead of scattered `Alert.alert` calls across screens.
 - Persist `currentUser` and last joined room in async storage so users can restore sessions after app reloads.
