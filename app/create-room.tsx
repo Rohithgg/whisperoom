@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ActivityIndicator , Platform } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
 import { ArrowLeft, Copy, User, Lock } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
 import * as Clipboard from 'expo-clipboard';
-import { Platform } from 'react-native';
 
 export default function CreateRoomScreen() {
   const [nickname, setNickname] = useState('');

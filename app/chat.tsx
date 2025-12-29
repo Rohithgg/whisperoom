@@ -1,12 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Send, UserX, LogOut } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
 
 export default function ChatScreen() {
   const [messageText, setMessageText] = useState('');
-  const { currentRoom, currentUser, sendMessage, endSession, leaveRoom } = useChat();
+  const { currentRoom, currentUser, sendMessage, endSession, leaveRoom } =
+    useChat();
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -18,22 +30,18 @@ export default function ChatScreen() {
 
     // Check if room became inactive (session ended)
     if (!currentRoom.isActive) {
-      Alert.alert(
-        'Session Ended',
-        'The room creator has ended this session.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              leaveRoom();
-              router.push('/session-ended');
-            }
-          }
-        ]
-      );
+      Alert.alert('Session Ended', 'The room creator has ended this session.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            leaveRoom();
+            router.push('/session-ended');
+          },
+        },
+      ]);
       return;
     }
-  }, [currentRoom, currentUser]);
+  }, [currentRoom, currentUser, leaveRoom, router]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -79,24 +87,20 @@ export default function ChatScreen() {
   };
 
   const handleLeaveRoom = () => {
-    Alert.alert(
-      'Leave Room',
-      'Are you sure you want to leave this room?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('Leave Room', 'Are you sure you want to leave this room?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: () => {
+          leaveRoom();
+          router.replace('/');
         },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => {
-            leaveRoom();
-            router.replace('/');
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   if (!currentRoom || !currentUser) {
@@ -117,22 +121,31 @@ export default function ChatScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Room {currentRoom.code}</Text>
-          <Text style={styles.headerSubtitle}>{currentRoom.members.length} member{currentRoom.members.length !== 1 ? 's' : ''}</Text>
+          <Text style={styles.headerSubtitle}>
+            {currentRoom.members.length} member
+            {currentRoom.members.length !== 1 ? 's' : ''}
+          </Text>
         </View>
         {isCreator ? (
-          <TouchableOpacity onPress={handleEndSession} style={styles.actionButton}>
+          <TouchableOpacity
+            onPress={handleEndSession}
+            style={styles.actionButton}
+          >
             <UserX size={20} color="#FF3B30" />
             <Text style={styles.endButtonText}>End</Text>
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity onPress={handleLeaveRoom} style={styles.actionButton}>
+          <TouchableOpacity
+            onPress={handleLeaveRoom}
+            style={styles.actionButton}
+          >
             <LogOut size={20} color="#FF9500" />
             <Text style={styles.exitButtonText}>Exit</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -145,7 +158,9 @@ export default function ChatScreen() {
           {currentRoom.messages.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No messages yet</Text>
-              <Text style={styles.emptyStateSubtext}>Start the conversation!</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Start the conversation!
+              </Text>
             </View>
           ) : (
             currentRoom.messages.map((message) => (
@@ -153,27 +168,41 @@ export default function ChatScreen() {
                 key={message.id}
                 style={[
                   styles.messageItem,
-                  message.sender === currentUser ? styles.myMessage : styles.otherMessage,
+                  message.sender === currentUser
+                    ? styles.myMessage
+                    : styles.otherMessage,
                 ]}
               >
                 <View style={styles.messageHeader}>
-                  <Text style={[
-                    styles.senderName,
-                    message.sender === currentUser ? styles.mySenderName : styles.otherSenderName,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.senderName,
+                      message.sender === currentUser
+                        ? styles.mySenderName
+                        : styles.otherSenderName,
+                    ]}
+                  >
                     {message.sender === currentUser ? 'You' : message.sender}
                   </Text>
-                  <Text style={[
-                    styles.timestamp,
-                    message.sender === currentUser ? styles.myTimestamp : styles.otherTimestamp,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.timestamp,
+                      message.sender === currentUser
+                        ? styles.myTimestamp
+                        : styles.otherTimestamp,
+                    ]}
+                  >
                     {formatTime(message.timestamp)}
                   </Text>
                 </View>
-                <Text style={[
-                  styles.messageText,
-                  message.sender === currentUser ? styles.myMessageText : styles.otherMessageText,
-                ]}>
+                <Text
+                  style={[
+                    styles.messageText,
+                    message.sender === currentUser
+                      ? styles.myMessageText
+                      : styles.otherMessageText,
+                  ]}
+                >
                   {message.text}
                 </Text>
               </View>
@@ -192,11 +221,17 @@ export default function ChatScreen() {
             placeholderTextColor="#8E8E93"
           />
           <TouchableOpacity
-            style={[styles.sendButton, messageText.trim() ? styles.sendButtonActive : null]}
+            style={[
+              styles.sendButton,
+              messageText.trim() ? styles.sendButtonActive : null,
+            ]}
             onPress={handleSendMessage}
             disabled={!messageText.trim()}
           >
-            <Send size={20} color={messageText.trim() ? "#ffffff" : "#8E8E93"} />
+            <Send
+              size={20}
+              color={messageText.trim() ? '#ffffff' : '#8E8E93'}
+            />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
