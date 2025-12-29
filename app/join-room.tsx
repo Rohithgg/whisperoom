@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Hash, Lock, User } from 'lucide-react-native';
 import { useChat } from '@/contexts/ChatContext';
@@ -7,7 +16,9 @@ import { useChat } from '@/contexts/ChatContext';
 export default function JoinRoomScreen() {
   const [roomCode, setRoomCode] = useState('');
   const [password, setPassword] = useState('');
-  const [nickname, setNickname] = useState(`User${Math.floor(Math.random() * 1000)}`);
+  const [nickname, setNickname] = useState(
+    `User${Math.floor(Math.random() * 1000)}`
+  );
   const { joinRoom, isLoading } = useChat();
   const router = useRouter();
 
@@ -17,7 +28,11 @@ export default function JoinRoomScreen() {
       return;
     }
 
-    const result = await joinRoom(roomCode.trim().toUpperCase(), password.trim(), nickname.trim());
+    const result = await joinRoom(
+      roomCode.trim().toUpperCase(),
+      password.trim(),
+      nickname.trim()
+    );
 
     if (result.success) {
       router.push('/chat');
@@ -29,7 +44,10 @@ export default function JoinRoomScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Join Room</Text>
@@ -39,7 +57,9 @@ export default function JoinRoomScreen() {
       <View style={styles.content}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Join a Chat Room</Text>
-          <Text style={styles.cardSubtitle}>Enter the room details shared with you</Text>
+          <Text style={styles.cardSubtitle}>
+            Enter the room details shared with you
+          </Text>
 
           <View style={styles.inputContainer}>
             <View style={styles.inputWrapper}>
@@ -95,7 +115,8 @@ export default function JoinRoomScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              💡 Make sure you have the correct room code and password from the room creator
+              💡 Make sure you have the correct room code and password from the
+              room creator
             </Text>
           </View>
         </View>

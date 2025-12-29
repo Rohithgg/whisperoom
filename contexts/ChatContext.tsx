@@ -1,11 +1,17 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from 'react';
 import {
   createRoom as createRoomHelper,
   joinRoom as joinRoomHelper,
   sendMessage as sendMessageHelper,
   endSession as endSessionHelper,
   subscribeToMessages,
-  subscribeToRoomStatus
+  subscribeToRoomStatus,
 } from '../utils/supabaseHelpers';
 
 export interface Message {
@@ -29,8 +35,15 @@ interface ChatContextType {
   currentRoom: Room | null;
   currentUser: string | null;
   isLoading: boolean;
-  createRoom: (nickname: string, password: string) => Promise<{ success: boolean; roomCode?: string; error?: string }>;
-  joinRoom: (roomCode: string, password: string, nickname: string) => Promise<{ success: boolean; error?: string }>;
+  createRoom: (
+    nickname: string,
+    password: string
+  ) => Promise<{ success: boolean; roomCode?: string; error?: string }>;
+  joinRoom: (
+    roomCode: string,
+    password: string,
+    nickname: string
+  ) => Promise<{ success: boolean; error?: string }>;
   sendMessage: (text: string) => Promise<{ success: boolean; error?: string }>;
   endSession: () => Promise<{ success: boolean; error?: string }>;
   leaveRoom: () => void;
@@ -49,37 +62,43 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentRoom) {
       // Subscribe to messages
-      const messagesChannel = subscribeToMessages(currentRoom.id, (newMessage) => {
-        setCurrentRoom(prev => {
-          if (!prev) return prev;
+      const messagesChannel = subscribeToMessages(
+        currentRoom.id,
+        (newMessage) => {
+          setCurrentRoom((prev) => {
+            if (!prev) return prev;
 
-          const newMsg: Message = {
-            id: newMessage.id,
-            sender: newMessage.sender,
-            text: newMessage.text,
-            timestamp: new Date(newMessage.created_at),
-            room_id: newMessage.room_id
-          };
+            const newMsg: Message = {
+              id: newMessage.id,
+              sender: newMessage.sender,
+              text: newMessage.text,
+              timestamp: new Date(newMessage.created_at),
+              room_id: newMessage.room_id,
+            };
 
-          return {
-            ...prev,
-            messages: [...prev.messages, newMsg]
-          };
-        });
-      });
+            return {
+              ...prev,
+              messages: [...prev.messages, newMsg],
+            };
+          });
+        }
+      );
       setRealtimeChannel(messagesChannel);
 
       // Subscribe to room status changes
-      const statusChannel = subscribeToRoomStatus(currentRoom.id, (updatedRoom) => {
-        setCurrentRoom(prev => {
-          if (!prev) return prev;
+      const statusChannel = subscribeToRoomStatus(
+        currentRoom.id,
+        (updatedRoom) => {
+          setCurrentRoom((prev) => {
+            if (!prev) return prev;
 
-          return {
-            ...prev,
-            isActive: updatedRoom.is_active
-          };
-        });
-      });
+            return {
+              ...prev,
+              isActive: updatedRoom.is_active,
+            };
+          });
+        }
+      );
       setRoomStatusChannel(statusChannel);
 
       return () => {
@@ -105,7 +124,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         let errorMsg = 'Failed to create room';
         if (typeof result.error === 'string') {
           errorMsg = result.error;
-        } else if (result.error && typeof result.error === 'object' && 'message' in result.error) {
+        } else if (
+          result.error &&
+          typeof result.error === 'object' &&
+          'message' in result.error
+        ) {
           errorMsg = (result.error as any).message;
         }
         return { success: false, error: errorMsg };
@@ -119,7 +142,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           creator: nickname,
           isActive: true,
           members: [nickname],
-          messages: []
+          messages: [],
         };
         setCurrentRoom(room);
         setCurrentUser(nickname);
@@ -130,13 +153,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Invalid response from server' };
     } catch (error) {
       console.error('Exception in createRoom:', error);
-      return { success: false, error: 'Network error - please check your connection' };
+      return {
+        success: false,
+        error: 'Network error - please check your connection',
+      };
     } finally {
       setIsLoading(false);
     }
   };
 
-  const joinRoom = async (roomCode: string, password: string, nickname: string) => {
+  const joinRoom = async (
+    roomCode: string,
+    password: string,
+    nickname: string
+  ) => {
     setIsLoading(true);
     try {
       const result = await joinRoomHelper(roomCode, password);
@@ -152,7 +182,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           creator: result.data.created_by,
           isActive: result.data.is_active,
           members: [nickname], // In a real app, you'd fetch the actual members
-          messages: []
+          messages: [],
         };
         setCurrentRoom(room);
         setCurrentUser(nickname);
@@ -190,7 +220,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       if (result.success) {
         // Update the room state to inactive
-        setCurrentRoom(prev => prev ? { ...prev, isActive: false } : null);
+        setCurrentRoom((prev) => (prev ? { ...prev, isActive: false } : null));
 
         // Clean up after a short delay to allow users to see the session ended message
         setTimeout(() => {
@@ -227,16 +257,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ChatContext.Provider value={{
-      currentRoom,
-      currentUser,
-      isLoading,
-      createRoom,
-      joinRoom,
-      sendMessage,
-      endSession,
-      leaveRoom,
-    }}>
+    <ChatContext.Provider
+      value={{
+        currentRoom,
+        currentUser,
+        isLoading,
+        createRoom,
+        joinRoom,
+        sendMessage,
+        endSession,
+        leaveRoom,
+      }}
+    >
       {children}
     </ChatContext.Provider>
   );
